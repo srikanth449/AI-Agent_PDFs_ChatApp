@@ -1,116 +1,124 @@
+
 import streamlit as st
 from PyPDF2 import PdfReader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import os
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-import google.generativeai as genai
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.chains.question_answering import load_qa_chain
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
+import google.generativeai as genai
+import os
 
+# Load environment variables
 load_dotenv()
-# os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
-def get_pdf_text(pdf_docs):
-    text=""
+# ------------------ PDF Processing ------------------
+
+def extract_text_from_pdfs(pdf_docs):
+    text = ""
     for pdf in pdf_docs:
-        pdf_reader= PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text+= page.extract_text()
-    return  text
+        try:
+            reader = PdfReader(pdf)
+            for page in reader.pages:
+                text += page.extract_text() or ""
+        except Exception as e:
+            st.error(f"Error reading PDF: {e}")
+    return text
 
+def split_text_into_chunks(text, chunk_size=2000, chunk_overlap=200):
+    splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+    return splitter.split_text(text)
 
+# ------------------ Embedding & Vector Store ------------------
 
-def get_text_chunks(text):
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=50000, chunk_overlap=1000)
-    chunks = text_splitter.split_text(text)
-    return chunks
+def create_vector_store(chunks, path="faiss_index"):
+    try:
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        vector_store = FAISS.from_texts(chunks, embedding=embeddings)
+        vector_store.save_local(path)
+        return True
+    except Exception as e:
+        st.error(f"Error creating vector store: {e}")
+        return False
 
+def load_vector_store(path="faiss_index"):
+    if not os.path.exists(f"{path}/index.faiss"):
+        st.warning("Vector store not found. Please upload and process PDFs first.")
+        return None
+    try:
+        embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+        return FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
+    except Exception as e:
+        st.error(f"Error loading vector store: {e}")
+        return None
 
-def get_vector_store(text_chunks):
-    embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
-    vector_store = FAISS.from_texts(text_chunks, embedding=embeddings)
-    vector_store.save_local("faiss_index")
+# ------------------ QA Chain ------------------
 
-
-def get_conversational_chain():
-
+def build_qa_chain():
     prompt_template = """
-    Answer the question as detailed as possible from the provided context, make sure to provide all the details, if the answer is not in
-    provided context just say, "answer is not available in the context", don't provide the wrong answer\n\n
-    Context:\n {context}?\n
-    Question: \n{question}\n
+    Answer the question as detailed as possible from the provided context. If the answer is not in the context, say "Answer not available in the context."
+
+    Context:
+    {context}
+
+    Question:
+    {question}
 
     Answer:
     """
+    model = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.3)
+    prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
+    return load_qa_chain(model, chain_type="stuff", prompt=prompt)
 
-    model = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0.3)
+def answer_user_question(question, vector_store):
+    if not question:
+        st.warning("Please enter a question.")
+        return
+    try:
+        docs = vector_store.similarity_search(question)
+        chain = build_qa_chain()
+        response = chain({"input_documents": docs, "question": question}, return_only_outputs=True)
+        st.write("📘 **Reply:**", response["output_text"])
+    except Exception as e:
+        st.error(f"Error generating response: {e}")
 
-    prompt = PromptTemplate(template = prompt_template, input_variables = ["context", "question"])
-    chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
-
-    return chain
-
-
-
-def user_input(user_question):
-    embeddings = GoogleGenerativeAIEmbeddings(model = "models/embedding-001")
-    
-    new_db = FAISS.load_local("faiss_index", embeddings)
-    docs = new_db.similarity_search(user_question)
-
-    chain = get_conversational_chain()
-
-    
-    response = chain(
-        {"input_documents":docs, "question": user_question}
-        , return_only_outputs=True)
-
-    print(response)
-    st.write("Reply: ", response["output_text"])
-
-
-
+# ------------------ Streamlit UI ------------------
 
 def main():
-    st.set_page_config("Multi PDF Chatbot", page_icon = ":scroll:")
-    st.header("Multi-PDF's 📚 - Chat Agent 🤖 ")
+    st.set_page_config("PDF Chatbot", page_icon="📚")
+    st.header("PDF Chatbot 🤖")
 
-    user_question = st.text_input("Ask a Question from the PDF Files uploaded .. ✍️📝")
+    user_question = st.text_input("Ask a question based on the uploaded PDFs:")
 
     if user_question:
-        user_input(user_question)
+        vector_store = load_vector_store()
+        if vector_store:
+            answer_user_question(user_question, vector_store)
 
     with st.sidebar:
-
         st.image("img/Robot.jpg")
-        st.write("---")
-        
-        st.title("📁 PDF File's Section")
-        pdf_docs = st.file_uploader("Upload your PDF Files & \n Click on the Submit & Process Button ", accept_multiple_files=True)
+        st.title("📁 Upload PDFs")
+        pdf_docs = st.file_uploader("Upload PDF files", accept_multiple_files=True)
         if st.button("Submit & Process"):
-            with st.spinner("Processing..."): # user friendly message.
-                raw_text = get_pdf_text(pdf_docs) # get the pdf text
-                text_chunks = get_text_chunks(raw_text) # get the text chunks
-                get_vector_store(text_chunks) # create vector store
-                st.success("Done")
-        
-        st.write("---")
-        st.image("img/gkj.jpg")
-        st.write("AI App created by @ Gurpreet Kaur")  # add this line to display the image
+            with st.spinner("Processing PDFs..."):
+                raw_text = extract_text_from_pdfs(pdf_docs)
+                if raw_text:
+                    chunks = split_text_into_chunks(raw_text)
+                    if create_vector_store(chunks):
+                        st.success("Vector store created successfully.")
+                else:
+                    st.warning("No text extracted from PDFs.")
 
+        #st.image("img/gkj.jpg")
+        st.caption("AI App created by @ Srikanth")
 
-    st.markdown(
-        """
+    st.markdown("""
         <div style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: #0E1117; padding: 15px; text-align: center;">
-            © <a href="https://github.com/gurpreetkaurjethra" target="_blank">Gurpreet Kaur Jethra</a> | Made with ❤️
+            © https://github.com/srikanth449 | Made with ❤️
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
