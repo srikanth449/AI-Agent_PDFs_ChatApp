@@ -34,6 +34,6 @@ jobs:
 
     - name: Deploy to GKE
       run: |
-        gcloud container clusters get-credentials chatpdf-cluster --zone us-central1-a --project solid-arcadia-467915-e9
+        gcloud container clusters get-credentials chatpdf-cluster --zone us-west4 --project solid-arcadia-467915-e9
         kubectl set image deployment/my-app my-app=us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
         kubectl rollout status deployment/my-app
