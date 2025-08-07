@@ -22,15 +22,14 @@ jobs:
     - name: Configure Docker for Artifact Registry
       run: gcloud auth configure-docker us-docker.pkg.dev
 
-
-    - name: Build Docker image
+    - name: Build and Push Docker image to Artifact Registry
       run: |
-        docker build -t us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }} .
-        docker push us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
-
+        IMAGE_URI=us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
+        docker build -t $IMAGE_URI .
+        docker push $IMAGE_URI
 
     - name: Deploy to GKE
       run: |
-        gcloud container clusters get-credentials chatpdf-cluster --zone chatpdf-cluster --project solid-arcadia-467915-e9
-        kubectl set image deployment/my-app my-app=gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
+        gcloud container clusters get-credentials chatpdf-cluster --zone us-central1-a --project solid-arcadia-467915-e9
+        kubectl set image deployment/my-app my-app=us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
         kubectl rollout status deployment/my-app
