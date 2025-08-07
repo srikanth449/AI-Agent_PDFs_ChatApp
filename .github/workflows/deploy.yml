@@ -16,19 +16,19 @@ jobs:
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        service_account_key: ${{ secrets.GCP_CREDENTIALS}}
-        project_id: chatpdfapp
+        service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+        project_id: solid-arcadia-467915-e9
 
     - name: Configure Docker for GCR
       run: gcloud auth configure-docker
 
     - name: Build Docker image
       run: |
-        docker build -t gcr.io/chatpdfapp/491ef3c3f8b2:${{ github.sha }} .
-        docker push gcr.io/chatpdfapp/491ef3c3f8b2:${{ github.sha }}
+        docker build -t gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }} .
+        docker push gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
 
     - name: Deploy to GKE
       run: |
-        gcloud container clusters get-credentials chatpdf-cluster --zone us-west4 --project chatpdfapp
-        kubectl set image deployment/my-app my-app=gcr.io/chatpdfapp/491ef3c3f8b2:${{ github.sha }}
+        gcloud container clusters get-credentials chatpdf-cluster --zone chatpdf-cluster --project solid-arcadia-467915-e9
+        kubectl set image deployment/my-app my-app=gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
         kubectl rollout status deployment/my-app
