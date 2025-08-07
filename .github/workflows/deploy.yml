@@ -1,0 +1,34 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        service_account_key: ${{ secrets.GCP_CREDENTIALS }}
+        project_id: solid-arcadia-467915-e9
+
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
+
+    - name: Build Docker image
+      run: |
+        docker build -t gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }} .
+        docker push gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
+
+    - name: Deploy to GKE
+      run: |
+        gcloud container clusters get-credentials chatpdf-cluster --zone us-west4 --project solid-arcadia-467915-e9
+        kubectl set image deployment/my-app my-app=gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
+        kubectl rollout status deployment/my-app
