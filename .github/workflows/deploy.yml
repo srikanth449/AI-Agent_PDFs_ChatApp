@@ -31,6 +31,10 @@ jobs:
         IMAGE_URI=us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
         docker build -t $IMAGE_URI .
         docker push $IMAGE_URI
+    - name: Install gke-gcloud-auth-plugin
+      run: |
+        gcloud components install gke-gcloud-auth-plugin
+        echo "USE_GKE_GCLOUD_AUTH_PLUGIN=True" >> $GITHUB_ENV
 
     - name: Deploy to GKE
       run: |
