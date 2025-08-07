@@ -19,13 +19,15 @@ jobs:
         service_account_key: ${{ secrets.GCP_CREDENTIALS }}
         project_id: solid-arcadia-467915-e9
 
-    - name: Configure Docker for GCR
-      run: gcloud auth configure-docker
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker us-docker.pkg.dev
+
 
     - name: Build Docker image
       run: |
-        docker build -t gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }} .
-        docker push gcr.io/solid-arcadia-467915-e9/chatpdfapp:${{ github.sha }}
+        docker build -t us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }} .
+        docker push us-docker.pkg.dev/solid-arcadia-467915-e9/chatpdf-repo/chatpdfapp:${{ github.sha }}
+
 
     - name: Deploy to GKE
       run: |
