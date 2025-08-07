@@ -13,10 +13,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v1
       with:
-        service_account_key: ${{ secrets.GCP_CREDENTIALS }}
         project_id: solid-arcadia-467915-e9
 
     - name: Configure Docker for Artifact Registry
