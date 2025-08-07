@@ -1,19 +1,19 @@
-apiVersion: apps/v1
+apiVersion: apps/v2
 kind: Deployment
 metadata:
-  name: my-app
+  name: chatpdfapp
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: my-app
+      app: chatpdfapp
   template:
     metadata:
       labels:
-        app: my-app
+        app: chatpdfapp
     spec:
       containers:
-      - name: my-app
+      - name: chatpdfapp
         image: gcr.io/solid-arcadia-467915-e9/chatpdfapp:latest
         ports:
-        - containerPort: 80
+        - containerPort: 8501
