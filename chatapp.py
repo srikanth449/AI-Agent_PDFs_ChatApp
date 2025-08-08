@@ -115,7 +115,7 @@ def main():
         st.caption("AI App created by @ Srikanth")
 
     st.markdown("""
-        <div style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: #E9F229; padding: 15px; text-align: center;">
+        <div style="position: fixed; bottom: 0; left: 0; width: 100%; background-color: #F54927; padding: 15px; text-align: center;">
             © https://github.com/srikanth449 | Made with ❤️
         </div>
     """, unsafe_allow_html=True)
